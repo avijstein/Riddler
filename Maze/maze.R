@@ -1,4 +1,3 @@
-setwd('~/Desktop/Riddler/Maze/')
 library(tidyverse)
 library(DiagrammeR)
 library(igraph)
@@ -51,4 +50,3 @@ win = win %>% group_by(round = 1) %>% nest()
 
 grids = grids %>% bind_rows(grid)
 wins = wins %>% bind_rows(win)
-
