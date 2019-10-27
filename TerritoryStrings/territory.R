@@ -1,5 +1,7 @@
 # import libraries/preferences/set seed
 library(tidyverse)
+library(maps)
+library(mapproj)
 theme_set(theme_light())
 set.seed(123)
 
@@ -25,5 +27,57 @@ runs = replicate(links(), n = 100000) %>%
   enframe() %>%
   mutate(len = map_int(value, length))
 
-# longest chain appears to be 24.
+# from 100k iterations, the longest chain appears to be 24.
 runs %>% arrange(desc(len))
+
+
+# Maps --------------------------------------------------------------------
+
+# importing map data
+us = map_data("state")
+
+# longest chains of states
+longest = runs %>%
+  filter(len == max(len)) %>%
+  mutate(trimmed = purrr::map(value, str_sub, 1,1)) %>%
+  mutate(first_string = purrr::map_chr(trimmed, str_c, collapse = '')) %>%
+  mutate(last_letter = str_sub(purrr::map_chr(value, str_c, collapse = ''), -1)) %>%
+  mutate(chain = paste0(first_string, last_letter)) %>%
+  pull(chain)
+
+# connectivity of given states
+conn = runs %>%
+  unnest() %>%
+  group_by(name = value) %>%
+  summarise(avg = mean(len)) %>%
+  inner_join(y = tibble(abbr = state.abb, region = tolower(state.name)), by = c('name' = 'abbr'))
+
+# frequency of appearance for given states
+appearances = runs %>%
+  unnest() %>%
+  add_count(value, name = 'count') %>%
+  mutate(percent = count / max(name)) %>%
+  distinct(value, percent) %>%
+  inner_join(y = tibble(abbr = state.abb, region = tolower(state.name)), by = c('value' = 'abbr'))
+
+# mapping connectivity
+ggplot() +
+  geom_map(data=us, map=us, aes(long, lat, map_id=region), fill=NA, color='grey') +
+  geom_map(data=conn, map=us, aes(fill=avg, map_id=region), color='grey', size = .15) +
+  coord_map('conic', lat0 = 30) +
+  scale_fill_gradient2(name='Average Length', low="white", high="purple") +
+  labs(x='Longitude', y='Latitude', title='Connectivity of State Abbreviations',
+       caption = 'Average length of path when this state is involved. Territories and non-continguous states excluded.')
+
+# ggsave('connectivity.pdf', width = 9, height = 5)
+
+# mapping appearance
+ggplot() +
+  geom_map(data=us, map=us, aes(long, lat, map_id=region), fill=NA, color='grey') +
+  geom_map(data=appearances, map=us, aes(fill=percent, map_id=region), color='grey', size = .15) +
+  coord_map('conic', lat0 = 30) +
+  scale_fill_gradient2(name='Percent of Paths', low="white", high="orange", trans = 'sqrt', label = percent) +
+  labs(x='Longitude', y='Latitude', title='Appearance of State Abbreviations in Pathways',
+       caption = 'Percentage of paths where this state is involved. Territories and non-continguous states excluded.')
+
+# ggsave('appearance.pdf', width = 9, height = 5)
