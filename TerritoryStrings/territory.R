@@ -69,7 +69,7 @@ ggplot() +
   labs(x='Longitude', y='Latitude', title='Connectivity of State Abbreviations',
        caption = 'Average length of path when this state is involved. Territories and non-continguous states excluded.')
 
-# ggsave('connectivity.pdf', width = 9, height = 5)
+# ggsave('maps/connectivity.pdf', width = 9, height = 5)
 
 # mapping appearance
 ggplot() +
@@ -80,4 +80,4 @@ ggplot() +
   labs(x='Longitude', y='Latitude', title='Appearance of State Abbreviations in Pathways',
        caption = 'Percentage of paths where this state is involved. Territories and non-continguous states excluded.')
 
-# ggsave('appearance.pdf', width = 9, height = 5)
+# ggsave('maps/appearance.pdf', width = 9, height = 5)
