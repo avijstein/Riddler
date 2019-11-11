@@ -41,28 +41,27 @@ pathfinder = function(grid) {
     filter(begin | finish) %>%
     mutate(start = ifelse(begin, id1, id2), end = ifelse(finish, id1, id2)) %>%
     distinct(start, end)
-  
-  
+
+
   # this has problems for randomly generated grids
   nodes = grid3 %>% gather(cat, node) %>% distinct(node) %>% count() %>% pull()
   graph = create_graph(nodes_df = create_node_df(n = nodes),
                        edges_df = create_edge_df(from = grid3$start, to = grid3$end)) %>% to_igraph()
-  
+
   paths = shortest_paths(graph = graph, from = 91, to = 63, mode = 'out')
   path = as.vector(paths$vpath[[1]]) %>% as_tibble() %>% rename(id = value)
   path
-  
-  win = path %>% left_join(y = grid, by = 'id')
-  
-  return(win)
-} 
 
+  win = path %>% left_join(y = grid, by = 'id')
+
+  return(win)
+}
 
 
 grid4 = grid3 %>% filter(start != end)
 
 ggplot(grid) +
-  geom_text(aes(x=x, y=y, label = value)) 
+  geom_text(aes(x=x, y=y, label = value))
 
 length(unique(c(grid4$start, grid4$end)))
 
@@ -109,8 +108,8 @@ grid4 %>%
 
 # this visualization can help check that all the path selection is right and not abhorrently wrong
 # it's also pretty
-grid4 %>% 
-  left_join(y = grid %>% transmute(id, start_x = x, start_y = y, value), by = c('start' = 'id')) %>% 
+grid4 %>%
+  left_join(y = grid %>% transmute(id, start_x = x, start_y = y, value), by = c('start' = 'id')) %>%
   left_join(y = grid %>% transmute(id, end_x = x, end_y = y), by = c('end' = 'id')) %>%
   filter(start %in% pull(path) | end %in% pull(path)) %>%
   ggplot() +

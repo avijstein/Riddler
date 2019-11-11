@@ -2,6 +2,7 @@
 library(tidyverse)
 library(maps)
 library(mapproj)
+library(scales)
 theme_set(theme_light())
 set.seed(123)
 
@@ -22,13 +23,21 @@ links = function(){
   return(chain)
 }
 
+links()
+
 # this can be run in parallel because it's drawing randomly each time.
 runs = replicate(links(), n = 100000) %>%
   enframe() %>%
-  mutate(len = map_int(value, length))
+  mutate(len = map_int(value, length)) %>%
+  mutate(len = len - 1)
 
 # from 100k iterations, the longest chain appears to be 24.
 runs %>% arrange(desc(len))
+
+
+runs %>%
+  ggplot() +
+  geom_histogram(aes(x=len, fill=len), alpha = .5, bins = max(runs$len)+1)
 
 
 # Maps --------------------------------------------------------------------
@@ -81,3 +90,57 @@ ggplot() +
        caption = 'Percentage of paths where this state is involved. Territories and non-continguous states excluded.')
 
 # ggsave('maps/appearance.pdf', width = 9, height = 5)
+
+
+
+# radial map
+
+pairs = expand.grid(abb, abb, stringsAsFactors = F) %>%
+  as_tibble() %>%
+  rename(start = Var1, end = Var2) %>%
+  filter((str_sub(start,2,2) == str_sub(end,1,1)) & start != end)
+
+circle = abb %>%
+  sort() %>%
+  enframe(name = 'id', value = 'state') %>%
+  mutate(theta = 2 * pi * id / n()) %>%
+  mutate(xpos = cos(theta), ypos = sin(theta)) %>%
+  select(state, xpos, ypos)
+
+pairs = pairs %>%
+  left_join(y = circle, by = c('start' = 'state')) %>% rename(xstart = xpos, ystart = ypos) %>%
+  left_join(y = circle, by = c('end' = 'state')) %>% rename(xend = xpos, yend = ypos)
+
+
+pairs %>%
+  ggplot() +
+  geom_segment(aes(x=xstart, y=ystart, xend=xend, yend=yend), alpha = .2) +
+  geom_text(data=circle, aes(x=xpos, y=ypos, label = state), size = 4.5) +
+  labs(x='', y='', title='Connections Between States and Territories') +
+  theme_void()
+
+# ggsave('maps/circles.pdf', width = 8, height = 8)
+
+long = runs %>%
+  filter(len > 21) %>%
+  unnest() %>%
+  group_by(name, len) %>%
+  transmute(start = value, end = lead(value)) %>%
+  na.omit() %>%
+  left_join(y = circle, by = c('start' = 'state')) %>% rename(xstart = xpos, ystart = ypos) %>%
+  left_join(y = circle, by = c('end' = 'state')) %>% rename(xend = xpos, yend = ypos) %>%
+  ungroup() %>%
+  mutate(len = factor(len))
+
+
+pairs %>%
+  ggplot() +
+  geom_segment(aes(x=xstart, y=ystart, xend=xend, yend=yend), alpha = .1) +
+  geom_segment(data=long, aes(x=xstart, y=ystart, xend=xend, yend=yend, color=factor(name)), alpha = .75) +
+  geom_text(data=circle, aes(x=xpos, y=ypos, label = state), size = 2.5) +
+  scale_color_discrete(name='Length of Runs') +
+  facet_wrap(~len) +
+  theme_minimal()
+
+# ggsave('maps/circles_lengths.pdf', width = 10, height = 8)
+
